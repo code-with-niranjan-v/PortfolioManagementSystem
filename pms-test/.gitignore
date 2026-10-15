@@ -1,0 +1,5 @@
+node_modules/
+
+# k6-node downloads or extracts its runtime here when load tests are run.
+.k6-node/
+k6-bin/
