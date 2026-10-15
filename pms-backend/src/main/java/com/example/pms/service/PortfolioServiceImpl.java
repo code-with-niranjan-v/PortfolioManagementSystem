@@ -52,6 +52,7 @@ public class PortfolioServiceImpl implements PortfolioService{
     private final SecurityMasterService securityMasterService;
     private final SecurityMasterRepository securityMasterRepository;
     private final PortfolioTransactionRepository portfolioTransactionRepository;
+    private final TransactionRepository transactionRepository;
 
     private static final List<String> DEMO_PORTFOLIO_NAMES = List.of(
             "DEMO 1Y | Equity overweight",
@@ -323,6 +324,7 @@ public class PortfolioServiceImpl implements PortfolioService{
                     "Initial holdings require %.2f, but only %.2f is available to invest.", totalCost, availableCash));
         }
         LocalDate today = LocalDate.now();
+        List<PortfolioHolding> existingPortfolioHoldings = portfolioHoldingRepository.findAllByPortfolio(portfolio);
         for (Map.Entry<Long, Integer> entry : quantityBySecurity.entrySet()) {
             SecurityMaster security = securityById.get(entry.getKey());
             double price = priceBySecurity.get(entry.getKey());
@@ -333,8 +335,47 @@ public class PortfolioServiceImpl implements PortfolioService{
                 security.setEquityCategory(category);
                 securityMasterRepository.save(security);
             }
-            portfolioHoldingRepository.save(new PortfolioHolding(null, portfolio, security, quantity,
-                    price, securityCost, security.getAsset(), today, today, HoldingStatus.BROUGHT, category));
+            List<PortfolioHolding> matchingHoldings = existingPortfolioHoldings.stream()
+                    .filter(existing -> existing.getSecurityMaster() != null
+                            && Objects.equals(existing.getSecurityMaster().getId(), security.getId())
+                            && existing.getHoldingStatus() != HoldingStatus.ADDED)
+                    .sorted(Comparator.comparing(PortfolioHolding::getId))
+                    .toList();
+            PortfolioHolding holding = matchingHoldings.isEmpty() ? null : matchingHoldings.get(0);
+            if (holding == null) {
+                holding = new PortfolioHolding(null, portfolio, security, quantity,
+                        price, securityCost, security.getAsset(), today, today, HoldingStatus.BROUGHT, category);
+            } else {
+                int oldQuantity = 0;
+                double oldCost = 0.0;
+                for (int duplicateIndex = 0; duplicateIndex < matchingHoldings.size(); duplicateIndex++) {
+                    PortfolioHolding existing = matchingHoldings.get(duplicateIndex);
+                    int existingQuantity = existing.getQuantityHeld() == null ? 0 : existing.getQuantityHeld();
+                    double existingCost = existing.getTotalCost() == null
+                            ? (existing.getAverageCost() == null ? 0.0 : existing.getAverageCost()) * existingQuantity
+                            : existing.getTotalCost();
+                    oldQuantity = Math.addExact(oldQuantity, existingQuantity);
+                    oldCost += existingCost;
+                    if (duplicateIndex > 0) {
+                        List<Transactions> priorTransactions = transactionRepository
+                                .findByPortfolioHoldingIdOrderByTransactionDateDesc(existing.getId());
+                        for (Transactions transaction : priorTransactions) transaction.setPortfolioHolding(holding);
+                        transactionRepository.saveAll(priorTransactions);
+                        portfolioHoldingRepository.delete(existing);
+                    }
+                }
+                int newQuantity = Math.addExact(oldQuantity, quantity);
+                double newCost = oldCost + securityCost;
+                holding.setQuantityHeld(newQuantity);
+                holding.setTotalCost(newCost);
+                holding.setAverageCost(newCost / newQuantity);
+                holding.setAsset(security.getAsset());
+                holding.setHoldingStatus(HoldingStatus.BROUGHT);
+                holding.setFirstBuyDate(holding.getFirstBuyDate() == null ? today : holding.getFirstBuyDate());
+                holding.setUpdatedAt(today);
+                if (category != null) holding.setEquityCategory(category);
+            }
+            portfolioHoldingRepository.save(holding);
         }
         portfolio.setAmount(Math.max(0, availableCash - totalCost));
         portfolioRepository.save(portfolio);

@@ -1,6 +1,14 @@
 {
+  "name": "pms-test",
+  "private": true,
   "type": "module",
+  "scripts": {
+    "loadtest": "node run-loadtest.mjs"
+  },
   "dependencies": {
     "axios": "^1.20.0"
+  },
+  "devDependencies": {
+    "k6-node": "^0.3.3"
   }
 }

@@ -11,5 +11,5 @@ public interface TransactionRepository extends JpaRepository<Transactions, Integ
     List<Transactions> findByPortfolioIdOrderByTransactionDateDesc(Long portfolioId);
     List<Transactions> findByPortfolioHoldingIdOrderByTransactionDateDesc(Integer holdingId);
     List<Transactions> findByPortfolioIdAndSecurityMasterIdOrderByTransactionDateDesc(Long portfolioId, Long securityId);
-    
+
 }

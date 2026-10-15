@@ -600,8 +600,6 @@ const PortfolioDetailsPage = () => {
   };
   const addOrderRow = () => setOrders((prev) => [...prev, newOrder()]);
   const removeOrderRow = (rowId) => setOrders((prev) => prev.filter((o) => o.rowId !== rowId));
-  const clearBasket = () => { setOrders([newOrder()]); setTradeError(""); };
-
   const refreshPortfolioData = async () => {
     const [freshPortfolio, freshHoldings, freshValidation, freshTheme, freshTransactions] = await Promise.all([
       getPortfolioBasicInfo(portfolioId),
@@ -1296,9 +1294,8 @@ const PortfolioDetailsPage = () => {
                     {portfolioIsNew && <span className="ml-2 text-amber-700">Theme validation runs at activation</span>}
                   </div>
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={clearBasket} disabled={tradeSubmitting} className="rounded-md border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40">Clear</button>
                     <button type="submit" disabled={!basketCanSubmit} className="rounded-md bg-blue-800 px-3 py-2 text-[11px] font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-40">
-                      {tradeSubmitting ? "Adding…" : portfolioIsNew ? "Add Holdings" : "Execute orders"}
+                      Execute orders
                     </button>
                   </div>
                 </div>
